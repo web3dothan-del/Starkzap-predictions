@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZapPredict — Prediction Market on Starknet</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07070d;--s1:#0d0d16;--s2:#131320;--s3:#191928;
+  --b1:#242436;--b2:#343450;--b3:#484868;
+  --tx:#f0f0ff;--m1:#8080a8;--m2:#505070;
+  --acc:#FF4F0B;--acc2:#FF7A3D;
+  --green:#00e676;--red:#ff1744;--blue:#2979ff;
+  --purple:#9c27b0;--amber:#ffab00;--teal:#00bcd4;
+  --yes:#00e676;--no:#ff1744;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(255,79,11,.04) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(0,230,118,.03) 0%,transparent 60%);pointer-events:none;z-index:0;}
+
+/* TOPBAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:58px;background:rgba(7,7,13,.96);border-bottom:1px solid var(--b1);position:sticky;top:0;z-index:50;backdrop-filter:blur(20px);}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-ic{width:32px;height:32px;background:var(--acc);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:900;color:#fff;}
+.logo-tx{font-family:'Barlow Condensed',sans-serif;font-size:21px;font-weight:900;}
+.logo-tx span{color:var(--acc);}
+.logo-tag{font-size:9px;color:var(--m1);border:1px solid var(--b2);border-radius:4px;padding:2px 7px;font-family:'DM Mono',monospace;}
+.topbar-center{display:flex;gap:10px;}
+.stat-chip{display:flex;align-items:center;gap:5px;background:var(--s1);border:1px solid var(--b1);border-radius:20px;padding:4px 12px;font-size:11px;font-family:'DM Mono',monospace;}
+.sc-l{color:var(--m1);}
+.sc-v{color:var(--tx);font-weight:500;}
+.topbar-right{display:flex;gap:10px;align-items:center;}
+.gas-pill{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;padding:4px 10px;border-radius:20px;background:rgba(0,230,118,.07);border:1px solid rgba(0,230,118,.18);color:var(--green);font-family:'DM Mono',monospace;}
+.gas-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.connect-btn{background:var(--acc);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:.15s;}
+.connect-btn:hover{background:var(--acc2);}
+.wallet-chip{display:flex;align-items:center;gap:7px;background:var(--s2);border:1px solid var(--b1);border-radius:10px;padding:7px 13px;font-size:11px;cursor:pointer;}
+.wdot{width:6px;height:6px;border-radius:50%;background:var(--green);}
+.waddr{font-family:'DM Mono',monospace;color:var(--m1);}
+
+/* HERO */
+.hero{max-width:1080px;margin:0 auto;padding:48px 24px 32px;position:relative;z-index:1;}
+.hero-tag{display:inline-flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);font-family:'DM Mono',monospace;margin-bottom:16px;}
+.hero-tag::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--acc);}
+.hero h1{font-family:'Barlow Condensed',sans-serif;font-size:clamp(38px,6vw,72px);font-weight:900;letter-spacing:-.02em;line-height:1.02;margin-bottom:14px;}
+.hero h1 em{color:var(--acc);font-style:normal;}
+.hero-sub{font-size:16px;color:var(--m1);max-width:540px;line-height:1.7;margin-bottom:28px;}
+.hero-stats{display:flex;gap:28px;flex-wrap:wrap;}
+.hs-item{text-align:left;}
+.hs-n{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;color:var(--acc2);line-height:1;}
+.hs-l{font-size:10px;color:var(--m1);text-transform:uppercase;letter-spacing:.08em;margin-top:3px;}
+
+/* MAIN LAYOUT */
+.main{max-width:1080px;margin:0 auto;padding:0 24px 48px;position:relative;z-index:1;}
+
+/* FILTERS */
+.filters{display:flex;align-items:center;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.filter-btn{padding:6px 14px;font-size:12px;font-weight:600;border-radius:20px;border:1px solid var(--b1);background:transparent;color:var(--m1);cursor:pointer;font-family:'DM Sans',sans-serif;transition:.15s;}
+.filter-btn:hover{color:var(--tx);border-color:var(--b2);}
+.filter-btn.active{background:var(--acc);border-color:var(--acc);color:#fff;}
+.search-inp{flex:1;max-width:260px;padding:7px 14px;background:var(--s2);border:1px solid var(--b1);border-radius:20px;color:var(--tx);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:.15s;}
+.search-inp:focus{border-color:var(--b2);}
+.search-inp::placeholder{color:var(--m2);}
+.sort-sel{padding:7px 12px;background:var(--s2);border:1px solid var(--b1);border-radius:20px;color:var(--m1);font-family:'DM Sans',sans-serif;font-size:12px;outline:none;cursor:pointer;}
+
+/* MARKETS GRID */
+.markets-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;}
+
+/* MARKET CARD */
+.mcard{background:var(--s1);border:1px solid var(--b1);border-radius:16px;overflow:hidden;transition:.2s;cursor:pointer;}
+.mcard:hover{border-color:var(--b2);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.3);}
+.mcard-top{padding:16px 18px 12px;}
+.mcard-cat{display:flex;align-items:center;gap:6px;margin-bottom:10px;}
+.cat-badge{font-size:9px;font-weight:700;padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.06em;}
+.cat-crypto{background:rgba(255,79,11,.1);color:var(--acc2);}
+.cat-defi{background:rgba(0,188,212,.1);color:var(--teal);}
+.cat-starknet{background:rgba(255,79,11,.15);color:var(--acc);}
+.cat-macro{background:rgba(156,39,176,.1);color:#ce93d8;}
+.cat-sports{background:rgba(0,230,118,.1);color:var(--green);}
+.mcard-ends{font-size:9px;color:var(--m2);font-family:'DM Mono',monospace;margin-left:auto;}
+.mcard-q{font-size:15px;font-weight:700;line-height:1.4;margin-bottom:12px;}
+.prob-bar{height:8px;background:var(--s3);border-radius:4px;overflow:hidden;margin-bottom:8px;display:flex;}
+.pb-yes{height:100%;background:var(--yes);border-radius:4px 0 0 4px;transition:width .6s ease;}
+.pb-no{height:100%;background:var(--no);border-radius:0 4px 4px 0;transition:width .6s ease;}
+.prob-labels{display:flex;justify-content:space-between;margin-bottom:10px;}
+.pl-yes{font-size:11px;font-weight:700;color:var(--yes);}
+.pl-no{font-size:11px;font-weight:700;color:var(--no);}
+.mcard-meta{display:flex;gap:10px;font-size:10px;color:var(--m1);font-family:'DM Mono',monospace;}
+.mm-item{display:flex;align-items:center;gap:4px;}
+.mcard-bottom{padding:10px 18px 14px;border-top:1px solid var(--b1);display:flex;gap:8px;}
+.bet-btn{flex:1;padding:9px;border:none;border-radius:9px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:.15s;}
+.bet-yes{background:rgba(0,230,118,.12);color:var(--yes);border:1.5px solid rgba(0,230,118,.2);}
+.bet-yes:hover{background:var(--yes);color:#000;}
+.bet-no{background:rgba(255,23,68,.1);color:var(--no);border:1.5px solid rgba(255,23,68,.2);}
+.bet-no:hover{background:var(--no);color:#fff;}
+.mcard-vol{font-size:10px;color:var(--m1);font-family:'DM Mono',monospace;display:flex;align-items:center;padding:0 2px;}
+
+/* TRENDING */
+.trending-strip{display:flex;gap:8px;margin-bottom:24px;overflow-x:auto;padding-bottom:4px;}
+.trending-strip::-webkit-scrollbar{height:3px;}
+.trending-strip::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px;}
+.trend-chip{display:flex;align-items:center;gap:8px;background:var(--s1);border:1px solid var(--b1);border-radius:10px;padding:8px 14px;white-space:nowrap;cursor:pointer;transition:.15s;flex-shrink:0;}
+.trend-chip:hover{border-color:var(--b2);}
+.tc-emoji{font-size:16px;}
+.tc-q{font-size:11px;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;}
+.tc-yes{font-size:11px;font-weight:700;color:var(--yes);}
+
+/* MY BETS */
+.my-bets-section{margin-top:32px;}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.section-title{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;letter-spacing:.04em;}
+.bets-table{background:var(--s1);border:1px solid var(--b1);border-radius:14px;overflow:hidden;}
+.bt-head{display:grid;grid-template-columns:2fr 80px 80px 80px 90px;gap:0;padding:10px 16px;border-bottom:1px solid var(--b1);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--m2);font-family:'DM Mono',monospace;}
+.bt-row{display:grid;grid-template-columns:2fr 80px 80px 80px 90px;gap:0;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.03);font-size:12px;align-items:center;transition:.15s;}
+.bt-row:last-child{border-bottom:none;}
+.bt-row:hover{background:var(--s2);}
+.bt-q{font-weight:600;}
+.bt-pos{font-weight:700;}
+.bt-pos.yes{color:var(--yes);}
+.bt-pos.no{color:var(--no);}
+.bt-stake{font-family:'DM Mono',monospace;}
+.bt-odds{font-family:'DM Mono',monospace;color:var(--m1);}
+.bt-pnl{font-family:'DM Mono',monospace;font-weight:700;}
+.bt-pnl.up{color:var(--yes);}
+.bt-pnl.dn{color:var(--no);}
+.bt-pnl.pending{color:var(--amber);}
+.empty-bets{padding:24px;text-align:center;color:var(--m2);font-size:13px;}
+
+/* BET MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(14px);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.2s;}
+.modal-bg.show{opacity:1;pointer-events:all;}
+.modal{transform:scale(.95);transition:.2s;}
+.modal-bg.show .modal{transform:scale(1);}
+
+/* BET SLIP */
+.bet-slip{background:var(--s1);border:1px solid var(--b2);border-radius:18px;width:420px;max-width:94vw;overflow:hidden;position:relative;}
+.bs-top{padding:22px 24px 16px;border-bottom:1px solid var(--b1);}
+.bs-cat{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);font-family:'DM Mono',monospace;margin-bottom:8px;}
+.bs-q{font-size:17px;font-weight:700;line-height:1.4;margin-bottom:12px;}
+.bs-prob{display:flex;gap:8px;align-items:center;}
+.bs-bar{flex:1;height:6px;background:var(--s3);border-radius:3px;overflow:hidden;display:flex;}
+.bs-yes-fill{height:100%;background:var(--yes);border-radius:3px 0 0 3px;}
+.bs-no-fill{height:100%;background:var(--no);border-radius:0 3px 3px 0;}
+.bs-body{padding:18px 24px;}
+.bs-side{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;}
+.bs-side-btn{padding:12px;text-align:center;border-radius:10px;cursor:pointer;border:2px solid;transition:.2s;font-weight:700;}
+.bss-yes{border-color:rgba(0,230,118,.25);background:rgba(0,230,118,.06);color:var(--yes);}
+.bss-yes.selected,.bss-yes:hover{background:rgba(0,230,118,.15);border-color:var(--yes);}
+.bss-no{border-color:rgba(255,23,68,.2);background:rgba(255,23,68,.05);color:var(--no);}
+.bss-no.selected,.bss-no:hover{background:rgba(255,23,68,.12);border-color:var(--no);}
+.bss-label{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;letter-spacing:.04em;}
+.bss-odds{font-size:11px;font-family:'DM Mono',monospace;margin-top:2px;opacity:.8;}
+.stake-section{margin-bottom:14px;}
+.stake-label{font-size:10px;color:var(--m1);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;}
+.stake-inp-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+.stake-inp{flex:1;background:var(--s2);border:1.5px solid var(--b1);border-radius:10px;padding:12px 14px;color:var(--tx);font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;outline:none;transition:.15s;}
+.stake-inp:focus{border-color:var(--b2);}
+.usdc-tag{font-size:12px;color:var(--m1);font-weight:600;white-space:nowrap;}
+.quick-stakes{display:flex;gap:6px;}
+.qs-chip{padding:5px 12px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid var(--b1);background:transparent;color:var(--m1);cursor:pointer;transition:.15s;}
+.qs-chip:hover{border-color:var(--acc);color:var(--acc);}
+.payout-box{background:var(--s2);border-radius:10px;padding:12px 14px;margin-bottom:14px;}
+.po-row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;}
+.po-k{color:var(--m1);}
+.po-v{font-weight:700;font-family:'DM Mono',monospace;}
+.po-v.green{color:var(--yes);}
+.po-v.orange{color:var(--acc2);}
+.confirm-btn{width:100%;padding:14px;border:none;border-radius:12px;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:.2s;position:relative;overflow:hidden;}
+.confirm-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.1) 0%,transparent 60%);pointer-events:none;}
+.confirm-btn.yes{background:var(--yes);color:#000;}
+.confirm-btn.no{background:var(--no);color:#fff;}
+.confirm-btn:hover{filter:brightness(1.08);transform:translateY(-1px);}
+.confirm-btn.loading{pointer-events:none;}
+.confirm-btn.loading .ctxt{opacity:0;}
+.confirm-btn.loading::before{content:'';position:absolute;top:50%;left:50%;width:20px;height:20px;margin:-10px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.bs-close{position:absolute;top:16px;right:16px;background:var(--s2);border:1px solid var(--b1);border-radius:7px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--m1);cursor:pointer;font-size:15px;}
+.bs-close:hover{color:var(--tx);}
+.sdk-note{font-size:9px;color:var(--m2);font-family:'DM Mono',monospace;text-align:center;margin-top:10px;}
+.sdk-note span{color:var(--acc2);}
+
+/* LOGIN MODAL */
+.lm{background:var(--s1);border:1px solid var(--b2);border-radius:18px;width:390px;max-width:94vw;overflow:hidden;position:relative;}
+.lm-top{padding:22px 24px 16px;border-bottom:1px solid var(--b1);}
+.lm-logo{display:flex;align-items:center;gap:9px;margin-bottom:14px;}
+.lm-logo-ic{width:32px;height:32px;background:var(--acc);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:900;color:#fff;}
+.lm-logo-tx{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:800;}
+.lm-logo-tx span{color:var(--acc);}
+.lm-title{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;margin-bottom:6px;}
+.lm-sub{font-size:13px;color:var(--m1);line-height:1.6;}
+.lm-body{padding:16px 24px 22px;}
+.lm-sec{font-size:9px;color:var(--m2);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 7px;}
+.s-btn{width:100%;display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:10px;border:1.5px solid var(--b1);background:transparent;color:var(--tx);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;margin-bottom:7px;}
+.s-btn:hover{border-color:var(--b2);background:var(--s2);}
+.s-btn.prim{background:var(--acc);border-color:var(--acc);color:#fff;}
+.s-btn.prim:hover{background:var(--acc2);}
+.s-ic{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:5px;flex-shrink:0;}
+.lm-email{width:100%;padding:11px 13px;background:var(--s2);border:1.5px solid var(--b1);border-radius:10px;color:var(--tx);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:.15s;margin-bottom:7px;}
+.lm-email:focus{border-color:var(--acc);}
+.lm-email::placeholder{color:var(--m2);}
+.lm-close{position:absolute;top:16px;right:16px;background:var(--s2);border:1px solid var(--b1);border-radius:7px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--m1);cursor:pointer;font-size:14px;}
+.lm-close:hover{color:var(--tx);}
+.lm-note{font-size:10px;color:var(--m2);text-align:center;margin-top:10px;line-height:1.6;}
+
+/* TX MODAL */
+.txm{background:var(--s1);border:1px solid var(--b2);border-radius:16px;width:360px;max-width:94vw;padding:22px;}
+.txm-title{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;margin-bottom:16px;}
+.tx-s{display:flex;gap:10px;align-items:flex-start;margin-bottom:13px;}
+.tsd{width:9px;height:9px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+.tsd.done{background:var(--green);}
+.tsd.active{background:var(--acc);animation:txp 1s infinite;}
+@keyframes txp{0%,100%{box-shadow:0 0 0 0 rgba(255,79,11,.4)}50%{box-shadow:0 0 0 5px rgba(255,79,11,0)}}
+.tsd.wait{background:var(--b2);}
+.ts-t{font-size:12px;font-weight:600;margin-bottom:1px;}
+.ts-s{font-size:10px;color:var(--m1);}
+.prog{height:2px;background:var(--b1);border-radius:1px;overflow:hidden;margin:12px 0;}
+.pf{height:100%;background:var(--acc);border-radius:1px;transition:width .9s ease;width:0%;}
+.tx-hb{font-family:'DM Mono',monospace;font-size:9px;color:var(--m1);padding:8px;background:var(--s2);border-radius:6px;margin-top:6px;word-break:break-all;display:none;}
+.tx-hb a{color:var(--acc2);}
+.btn-done{width:100%;margin-top:13px;padding:11px;background:var(--green);color:#fff;border:none;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;display:none;}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--s1);border:1px solid var(--b2);border-radius:10px;padding:10px 20px;font-size:12px;font-weight:600;z-index:500;pointer-events:none;animation:toastIn .3s ease;}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.toast.good{border-color:var(--green);color:var(--green);}
+.toast.bad{border-color:var(--red);color:var(--red);}
+
+/* CREATE MARKET */
+.create-btn{display:flex;align-items:center;gap:7px;background:transparent;border:1.5px solid var(--acc);color:var(--acc);border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:.15s;}
+.create-btn:hover{background:rgba(255,79,11,.08);}
+.create-modal{background:var(--s1);border:1px solid var(--b2);border-radius:18px;width:460px;max-width:94vw;padding:24px;position:relative;}
+.cm-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;margin-bottom:18px;}
+.cm-close{position:absolute;top:16px;right:16px;background:var(--s2);border:1px solid var(--b1);border-radius:7px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--m1);cursor:pointer;font-size:14px;}
+.form-group{margin-bottom:14px;}
+.form-label{font-size:10px;color:var(--m1);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;font-weight:600;}
+.form-inp{width:100%;padding:11px 14px;background:var(--s2);border:1.5px solid var(--b1);border-radius:10px;color:var(--tx);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:.15s;}
+.form-inp:focus{border-color:var(--acc);}
+.form-inp::placeholder{color:var(--m2);}
+.cat-select{display:flex;gap:6px;flex-wrap:wrap;}
+.cat-chip{padding:6px 12px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid var(--b1);background:transparent;color:var(--m1);cursor:pointer;transition:.15s;}
+.cat-chip.active,.cat-chip:hover{border-color:var(--acc);color:var(--acc);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.create-submit{width:100%;padding:13px;background:var(--acc);color:#fff;border:none;border-radius:12px;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:.15s;margin-top:4px;}
+.create-submit:hover{background:var(--acc2);}
+
+@media(max-width:640px){
+  .hero h1{font-size:38px;}
+  .topbar-center{display:none;}
+  .bt-head,.bt-row{grid-template-columns:1fr 60px 70px;}
+  .bt-head .bth-odds,.bt-row .bt-odds,.bt-head .bth-stake,.bt-row .bt-stake{display:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-ic">Z</div>
+    <span class="logo-tx">Zap<span>Predict</span></span>
+    <span class="logo-tag">Starknet</span>
+  </div>
+  <div class="topbar-center">
+    <div class="stat-chip"><span class="sc-l">Total Volume&nbsp;</span><span class="sc-v" id="sc-vol">$0</span></div>
+    <div class="stat-chip"><span class="sc-l">Open Markets&nbsp;</span><span class="sc-v" id="sc-mkts">0</span></div>
+    <div class="stat-chip"><span class="sc-l">Traders&nbsp;</span><span class="sc-v" id="sc-traders">0</span></div>
+  </div>
+  <div class="topbar-right">
+    <div class="gas-pill"><div class="gas-dot"></div>Zero Gas</div>
+    <button class="create-btn" onclick="openCreateModal()">+ Create Market</button>
+    <div id="wallet-area">
+      <button class="connect-btn" onclick="openLogin()">Connect Wallet</button>
+    </div>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-tag">Prediction Market · Powered by Starkzap SDK</div>
+  <h1>Bet on anything.<br><em>Zero gas.</em> Real money.</h1>
+  <p class="hero-sub">Trade shares in real-world outcomes. Crypto prices, DeFi milestones, Starknet ecosystem events — stake USDC, earn if you're right.</p>
+  <div class="hero-stats">
+    <div class="hs-item"><div class="hs-n" id="h-vol">$0</div><div class="hs-l">Total Volume</div></div>
+    <div class="hs-item"><div class="hs-n" id="h-mkts">0</div><div class="hs-l">Active Markets</div></div>
+    <div class="hs-item"><div class="hs-n">$0.00</div><div class="hs-l">Gas Per Trade</div></div>
+    <div class="hs-item"><div class="hs-n" id="h-traders">0</div><div class="hs-l">Traders</div></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- TRENDING -->
+  <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--m2);font-family:'DM Mono',monospace;margin-bottom:10px;">🔥 Trending Now</div>
+  <div class="trending-strip" id="trending-strip"></div>
+
+  <!-- FILTERS -->
+  <div class="filters">
+    <button class="filter-btn active" onclick="setFilter('all',this)">All Markets</button>
+    <button class="filter-btn" onclick="setFilter('crypto',this)">Crypto</button>
+    <button class="filter-btn" onclick="setFilter('starknet',this)">Starknet</button>
+    <button class="filter-btn" onclick="setFilter('defi',this)">DeFi</button>
+    <button class="filter-btn" onclick="setFilter('macro',this)">Macro</button>
+    <button class="filter-btn" onclick="setFilter('sports',this)">Sports</button>
+    <input class="search-inp" placeholder="Search markets..." oninput="searchMarkets(this.value)">
+    <select class="sort-sel" onchange="sortMarkets(this.value)">
+      <option value="vol">Sort: Volume</option>
+      <option value="close">Sort: Closing Soon</option>
+      <option value="new">Sort: Newest</option>
+    </select>
+  </div>
+
+  <!-- MARKETS -->
+  <div class="markets-grid" id="markets-grid"></div>
+
+  <!-- MY BETS -->
+  <div class="my-bets-section">
+    <div class="section-head">
+      <div class="section-title">My Positions</div>
+      <div style="font-size:12px;color:var(--m1);" id="bets-pnl"></div>
+    </div>
+    <div class="bets-table">
+      <div class="bt-head">
+        <div>Market</div>
+        <div>Position</div>
+        <div class="bth-stake">Stake</div>
+        <div class="bth-odds">Odds</div>
+        <div>P&L</div>
+      </div>
+      <div id="bets-list">
+        <div class="empty-bets">Connect wallet to view your positions · or place your first bet</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BET SLIP MODAL -->
+<div class="modal-bg" id="bet-modal">
+  <div class="modal bet-slip" onclick="event.stopPropagation()">
+    <button class="bs-close" onclick="closeModal('bet-modal')">✕</button>
+    <div class="bs-top">
+      <div class="bs-cat" id="bs-cat">CRYPTO</div>
+      <div class="bs-q" id="bs-q">Will ETH reach $5,000?</div>
+      <div class="bs-prob">
+        <span style="font-size:11px;color:var(--yes);font-weight:700;" id="bs-yes-pct">62%</span>
+        <div class="bs-bar" style="flex:1;margin:0 8px;">
+          <div class="bs-yes-fill" id="bs-yes-fill" style="width:62%;"></div>
+          <div class="bs-no-fill" id="bs-no-fill" style="width:38%;"></div>
+        </div>
+        <span style="font-size:11px;color:var(--no);font-weight:700;" id="bs-no-pct">38%</span>
+      </div>
+    </div>
+    <div class="bs-body">
+      <div class="bs-side">
+        <div class="bs-side-btn bss-yes selected" id="bss-yes" onclick="selectSide('yes')">
+          <div class="bss-label">YES</div>
+          <div class="bss-odds" id="bss-yes-odds">62¢ · pays $1</div>
+        </div>
+        <div class="bs-side-btn bss-no" id="bss-no" onclick="selectSide('no')">
+          <div class="bss-label">NO</div>
+          <div class="bss-odds" id="bss-no-odds">38¢ · pays $1</div>
+        </div>
+      </div>
+      <div class="stake-section">
+        <div class="stake-label">Your Stake</div>
+        <div class="stake-inp-row">
+          <input class="stake-inp" id="stake-inp" type="number" placeholder="100" value="100" oninput="updatePayout()">
+          <span class="usdc-tag">USDC</span>
+        </div>
+        <div class="quick-stakes">
+          <button class="qs-chip" onclick="setStake(10)">$10</button>
+          <button class="qs-chip" onclick="setStake(50)">$50</button>
+          <button class="qs-chip" onclick="setStake(100)">$100</button>
+          <button class="qs-chip" onclick="setStake(500)">$500</button>
+        </div>
+      </div>
+      <div class="payout-box">
+        <div class="po-row"><span class="po-k">Stake</span><span class="po-v" id="po-stake">$100.00</span></div>
+        <div class="po-row"><span class="po-k">Potential payout</span><span class="po-v green" id="po-payout">$161.29</span></div>
+        <div class="po-row"><span class="po-k">Potential profit</span><span class="po-v orange" id="po-profit">+$61.29</span></div>
+        <div class="po-row"><span class="po-k">Gas fee</span><span class="po-v" style="color:var(--green)">$0.00 — Sponsored</span></div>
+      </div>
+      <button class="confirm-btn yes" id="confirm-btn" onclick="confirmBet()">
+        <span class="ctxt" id="confirm-txt">BET YES — $100</span>
+      </button>
+      <div class="sdk-note">Powered by <span>Starkzap SDK</span> · wallet.swap() + AVNU paymaster · zero gas</div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN MODAL -->
+<div class="modal-bg" id="login-modal">
+  <div class="modal lm" onclick="event.stopPropagation()">
+    <button class="lm-close" onclick="closeModal('login-modal')">✕</button>
+    <div class="lm-top">
+      <div class="lm-logo"><div class="lm-logo-ic">Z</div><span class="lm-logo-tx">Zap<span>Predict</span></span></div>
+      <div class="lm-title">Connect to predict</div>
+      <div class="lm-sub">Zero gas on every bet · Self-custody · No seed phrases shown</div>
+    </div>
+    <div class="lm-body">
+      <div class="lm-sec">Starknet Wallets</div>
+      <button class="s-btn prim" onclick="connectWallet()">
+        <div class="s-ic" style="background:var(--acc);color:#fff;font-size:10px;font-weight:800;">A</div>
+        Argent X / Braavos
+        <span style="margin-left:auto;font-size:10px;opacity:.7;">Recommended</span>
+      </button>
+      <div class="lm-sec">Social Login via Privy</div>
+      <button class="s-btn" onclick="socialLogin('google')">
+        <div class="s-ic" style="background:#fff;"><svg width="14" height="14" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg></div>
+        Google
+      </button>
+      <button class="s-btn" onclick="socialLogin('discord')">
+        <div class="s-ic" style="background:#5865F2;border-radius:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.032.054a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg></div>
+        Discord
+      </button>
+      <button class="s-btn" onclick="socialLogin('twitter')">
+        <div class="s-ic" style="background:#000;border-radius:5px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></div>
+        X (Twitter)
+      </button>
+      <div style="display:flex;align-items:center;gap:8px;margin:10px 0;color:var(--m2);font-size:10px;"><div style="flex:1;height:1px;background:var(--b1);"></div>or<div style="flex:1;height:1px;background:var(--b1);"></div></div>
+      <input class="lm-email" type="email" placeholder="Email address">
+      <button class="s-btn" style="justify-content:center;" onclick="socialLogin('email')">Continue with Email →</button>
+      <div class="lm-note">Powered by Starkzap SDK + Privy · Self-custody always preserved</div>
+    </div>
+  </div>
+</div>
+
+<!-- TX MODAL -->
+<div class="modal-bg" id="tx-modal">
+  <div class="modal txm">
+    <div class="txm-title" id="txm-title">Placing Bet</div>
+    <div id="txm-steps"></div>
+    <div class="prog"><div class="pf" id="txm-pf"></div></div>
+    <div class="tx-hb" id="txm-hash"></div>
+    <button class="btn-done" id="txm-done" onclick="closeModal('tx-modal')">✓ DONE</button>
+  </div>
+</div>
+
+<!-- CREATE MARKET MODAL -->
+<div class="modal-bg" id="create-modal">
+  <div class="modal create-modal" onclick="event.stopPropagation()">
+    <button class="cm-close" onclick="closeModal('create-modal')">✕</button>
+    <div class="cm-title">Create a Market</div>
+    <div class="form-group">
+      <div class="form-label">Question</div>
+      <input class="form-inp" id="cm-question" placeholder="Will ETH reach $10,000 by end of 2025?" maxlength="120">
+    </div>
+    <div class="form-group">
+      <div class="form-label">Category</div>
+      <div class="cat-select" id="cm-cats">
+        <button class="cat-chip active" onclick="setCat(this,'crypto')">Crypto</button>
+        <button class="cat-chip" onclick="setCat(this,'starknet')">Starknet</button>
+        <button class="cat-chip" onclick="setCat(this,'defi')">DeFi</button>
+        <button class="cat-chip" onclick="setCat(this,'macro')">Macro</button>
+        <button class="cat-chip" onclick="setCat(this,'sports')">Sports</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Resolution Date</div>
+        <input class="form-inp" id="cm-date" type="date">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Initial Liquidity (USDC)</div>
+        <input class="form-inp" id="cm-liquidity" type="number" placeholder="500" value="500">
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Initial YES Probability (%)</div>
+      <input class="form-inp" id="cm-prob" type="number" placeholder="50" value="50" min="1" max="99">
+    </div>
+    <button class="create-submit" onclick="submitCreateMarket()">CREATE MARKET</button>
+    <div class="sdk-note" style="margin-top:10px;">Powered by <span style="color:var(--acc2);">Starkzap SDK</span> · wallet.tx() + Starknet contract deployment</div>
+  </div>
+</div>
+
+<script>
+/* ══ MARKETS DATA ══ */
+const MARKETS = [
+  { id:1,  cat:'crypto',   emoji:'💎', q:'Will ETH reach $5,000 before July 2025?',              yes:62, vol:48200, traders:342, ends:'Jun 30, 2025', hot:true  },
+  { id:2,  cat:'starknet', emoji:'⚡', q:'Will Starkzap SDK hit 500 GitHub stars by Q3 2025?',   yes:71, vol:22100, traders:187, ends:'Sep 30, 2025', hot:true  },
+  { id:3,  cat:'crypto',   emoji:'₿',  q:'Will BTC break $120,000 in 2025?',                    yes:54, vol:91400, traders:621, ends:'Dec 31, 2025', hot:true  },
+  { id:4,  cat:'defi',     emoji:'🏦', q:'Will Starknet TVL exceed $2B by end of 2025?',         yes:68, vol:31800, traders:243, ends:'Dec 31, 2025', hot:false },
+  { id:5,  cat:'starknet', emoji:'🚀', q:'Will Starkzap SDK be used in 200+ projects by 2026?', yes:76, vol:18900, traders:156, ends:'Jan 1, 2026',  hot:true  },
+  { id:6,  cat:'crypto',   emoji:'📉', q:'Will STRK token outperform ETH in Q2 2025?',           yes:41, vol:27600, traders:198, ends:'Jun 30, 2025', hot:false },
+  { id:7,  cat:'defi',     emoji:'💧', q:'Will AVNU process $1B in cumulative volume by 2026?',  yes:83, vol:14200, traders:112, ends:'Jan 1, 2026',  hot:false },
+  { id:8,  cat:'macro',    emoji:'🏛️', q:'Will the Fed cut rates 3+ times in 2025?',             yes:47, vol:38700, traders:445, ends:'Dec 31, 2025', hot:false },
+  { id:9,  cat:'starknet', emoji:'🔒', q:'Will ZK private transfers be mainstream on Starknet by 2026?', yes:59, vol:9800,  traders:88,  ends:'Jan 1, 2026',  hot:false },
+  { id:10, cat:'crypto',   emoji:'🌊', q:'Will DeFi TVL exceed $200B in 2025?',                  yes:38, vol:52300, traders:389, ends:'Dec 31, 2025', hot:false },
+  { id:11, cat:'starknet', emoji:'🛸', q:'Will Starknet settle on Bitcoin mainnet by end of 2025?', yes:64, vol:44100, traders:312, ends:'Dec 31, 2025', hot:true  },
+  { id:12, cat:'sports',   emoji:'⚽', q:'Will a crypto brand sponsor a Champions League club by 2026?', yes:72, vol:16400, traders:201, ends:'Jun 1, 2026', hot:false },
+];
+
+/* ══ STATE ══ */
+let connected = false;
+let userAddr = null;
+let myBets = [];
+let activeFilter = 'all';
+let searchQuery = '';
+let sortMode = 'vol';
+let currentMarket = null;
+let selectedSideVal = 'yes';
+let createCat = 'crypto';
+let totalVolume = 0;
+let totalTraders = 0;
+
+/* ══ INIT ══ */
+function init(){
+  totalVolume = MARKETS.reduce((a,m)=>a+m.vol,0);
+  totalTraders = MARKETS.reduce((a,m)=>a+m.traders,0);
+  updateStats();
+  renderTrending();
+  renderMarkets();
+  // Set default date for create modal
+  const d = new Date(); d.setMonth(d.getMonth()+3);
+  document.getElementById('cm-date').value = d.toISOString().split('T')[0];
+  // Live price tick
+  setInterval(tickPrices, 4000);
+  // Auto-connect if wallet present
+  if(window.starknet?.isConnected && window.starknet?.selectedAddress){
+    userAddr=window.starknet.selectedAddress; setConnected();
+  }
+}
+
+function updateStats(){
+  const volStr = totalVolume>=1000000?'$'+(totalVolume/1000000).toFixed(1)+'M':'$'+(totalVolume/1000).toFixed(0)+'K';
+  document.getElementById('sc-vol').textContent=volStr;
+  document.getElementById('h-vol').textContent=volStr;
+  document.getElementById('sc-mkts').textContent=MARKETS.length;
+  document.getElementById('h-mkts').textContent=MARKETS.length;
+  document.getElementById('sc-traders').textContent=totalTraders.toLocaleString();
+  document.getElementById('h-traders').textContent=totalTraders.toLocaleString();
+}
+
+/* ══ PRICE TICKS ══ */
+function tickPrices(){
+  MARKETS.forEach(m=>{
+    if(Math.random()>.7){
+      m.yes = Math.max(2,Math.min(98,m.yes+(Math.random()-.5)*3));
+      m.vol += Math.floor(Math.random()*400);
+      totalVolume += Math.floor(Math.random()*400);
+    }
+  });
+  totalVolume += Math.floor(Math.random()*800);
+  updateStats();
+  renderMarkets();
+  renderTrending();
+  renderMyBets();
+}
+
+/* ══ TRENDING ══ */
+function renderTrending(){
+  const hot = MARKETS.filter(m=>m.hot).slice(0,5);
+  document.getElementById('trending-strip').innerHTML = hot.map(m=>`
+    <div class="trend-chip" onclick="openBetModal(${m.id})">
+      <span class="tc-emoji">${m.emoji}</span>
+      <span class="tc-q">${m.q}</span>
+      <span class="tc-yes">${Math.round(m.yes)}%</span>
+    </div>`).join('');
+}
+
+/* ══ FILTER & RENDER MARKETS ══ */
+function setFilter(f,el){
+  activeFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderMarkets();
+}
+
+function searchMarkets(q){ searchQuery=q.toLowerCase(); renderMarkets(); }
+function sortMarkets(v){ sortMode=v; renderMarkets(); }
+
+function getFilteredMarkets(){
+  let list = [...MARKETS];
+  if(activeFilter!=='all') list=list.filter(m=>m.cat===activeFilter);
+  if(searchQuery) list=list.filter(m=>m.q.toLowerCase().includes(searchQuery));
+  if(sortMode==='vol') list.sort((a,b)=>b.vol-a.vol);
+  else if(sortMode==='new') list.sort((a,b)=>b.id-a.id);
+  return list;
+}
+
+function catClass(cat){
+  return {crypto:'cat-crypto',defi:'cat-defi',starknet:'cat-starknet',macro:'cat-macro',sports:'cat-sports'}[cat]||'cat-crypto';
+}
+
+function fmtVol(v){ return v>=1000000?'$'+(v/1000000).toFixed(1)+'M':v>=1000?'$'+(v/1000).toFixed(0)+'K':'$'+v; }
+
+function renderMarkets(){
+  const list = getFilteredMarkets();
+  document.getElementById('markets-grid').innerHTML = list.map(m=>{
+    const yesPct=Math.round(m.yes), noPct=100-yesPct;
+    const myBet = myBets.find(b=>b.marketId===m.id);
+    return `<div class="mcard" onclick="openBetModal(${m.id})">
+      <div class="mcard-top">
+        <div class="mcard-cat">
+          <span class="cat-badge ${catClass(m.cat)}">${m.cat}</span>
+          <span class="mcard-ends">Ends ${m.ends}</span>
+        </div>
+        <div class="mcard-q">${m.emoji} ${m.q}</div>
+        <div class="prob-bar">
+          <div class="pb-yes" style="width:${yesPct}%;"></div>
+          <div class="pb-no" style="width:${noPct}%;"></div>
+        </div>
+        <div class="prob-labels">
+          <span class="pl-yes">YES ${yesPct}%</span>
+          <span class="pl-no">NO ${noPct}%</span>
+        </div>
+        <div class="mcard-meta">
+          <span class="mm-item">💧 ${fmtVol(m.vol)}</span>
+          <span class="mm-item">👥 ${m.traders}</span>
+          ${myBet?`<span class="mm-item" style="color:var(--acc2)">✓ You bet ${myBet.side.toUpperCase()}</span>`:''}
+        </div>
+      </div>
+      <div class="mcard-bottom" onclick="event.stopPropagation()">
+        <button class="bet-btn bet-yes" onclick="openBetModal(${m.id},'yes')">✓ YES ${yesPct}¢</button>
+        <button class="bet-btn bet-no" onclick="openBetModal(${m.id},'no')">✗ NO ${noPct}¢</button>
+        <div class="mcard-vol">${fmtVol(m.vol)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ══ BET MODAL ══ */
+function openBetModal(id, side='yes'){
+  if(!connected){ openLogin(); return; }
+  const m = MARKETS.find(x=>x.id===id);
+  if(!m) return;
+  currentMarket = m;
+  selectedSideVal = side;
+  document.getElementById('bs-cat').textContent = m.cat.toUpperCase();
+  document.getElementById('bs-q').textContent = m.emoji+' '+m.q;
+  const yesPct=Math.round(m.yes), noPct=100-yesPct;
+  document.getElementById('bs-yes-pct').textContent=yesPct+'%';
+  document.getElementById('bs-no-pct').textContent=noPct+'%';
+  document.getElementById('bs-yes-fill').style.width=yesPct+'%';
+  document.getElementById('bs-no-fill').style.width=noPct+'%';
+  document.getElementById('bss-yes-odds').textContent=yesPct+'¢ · pays $1';
+  document.getElementById('bss-no-odds').textContent=noPct+'¢ · pays $1';
+  selectSide(side);
+  document.getElementById('bet-modal').classList.add('show');
+}
+
+function selectSide(side){
+  selectedSideVal=side;
+  document.getElementById('bss-yes').classList.toggle('selected',side==='yes');
+  document.getElementById('bss-no').classList.toggle('selected',side==='no');
+  const btn=document.getElementById('confirm-btn');
+  btn.className='confirm-btn '+side;
+  updatePayout();
+}
+
+function setStake(amt){ document.getElementById('stake-inp').value=amt; updatePayout(); }
+
+function updatePayout(){
+  if(!currentMarket) return;
+  const stake=parseFloat(document.getElementById('stake-inp').value)||0;
+  const prob=selectedSideVal==='yes'?currentMarket.yes/100:(100-currentMarket.yes)/100;
+  const payout=stake/prob;
+  const profit=payout-stake;
+  document.getElementById('po-stake').textContent='$'+stake.toFixed(2);
+  document.getElementById('po-payout').textContent='$'+payout.toFixed(2);
+  document.getElementById('po-profit').textContent='+$'+profit.toFixed(2);
+  const stake2=parseFloat(document.getElementById('stake-inp').value)||0;
+  document.getElementById('confirm-txt').textContent=`BET ${selectedSideVal.toUpperCase()} — $${stake2}`;
+}
+
+function confirmBet(){
+  if(!connected){ openLogin(); return; }
+  const stake=parseFloat(document.getElementById('stake-inp').value)||0;
+  if(!stake||stake<1){ showToast('Minimum bet is $1','bad'); return; }
+  const btn=document.getElementById('confirm-btn');
+  btn.classList.add('loading');
+  setTimeout(()=>{
+    btn.classList.remove('loading');
+    closeModal('bet-modal');
+    const prob=selectedSideVal==='yes'?currentMarket.yes/100:(100-currentMarket.yes)/100;
+    const payout=stake/prob;
+    showTx('Placing Bet',[
+      {t:'Approving USDC spend',s:`$${stake} stake on ${selectedSideVal.toUpperCase()}`},
+      {t:'Minting position shares',s:`Starkzap SDK → wallet.tx() on Starknet`},
+      {t:'Bet confirmed',s:`Position recorded on-chain · gas $0.00`},
+    ],null,()=>{
+      myBets.push({
+        marketId: currentMarket.id,
+        q: currentMarket.q,
+        side: selectedSideVal,
+        stake,
+        payout,
+        odds: Math.round(selectedSideVal==='yes'?currentMarket.yes:100-currentMarket.yes),
+        status: 'pending',
+      });
+      currentMarket.vol += stake;
+      currentMarket.traders += 1;
+      totalVolume += stake;
+      totalTraders += 1;
+      updateStats();
+      renderMarkets();
+      renderMyBets();
+      showToast(`✓ Bet placed — ${selectedSideVal.toUpperCase()} $${stake}`, 'good');
+    });
+  },600);
+}
+
+/* ══ MY BETS ══ */
+function renderMyBets(){
+  const list=document.getElementById('bets-list');
+  if(!connected||!myBets.length){
+    list.innerHTML='<div class="empty-bets">'+(connected?'No positions yet — place your first bet':'Connect wallet to view your positions')+'</div>';
+    document.getElementById('bets-pnl').textContent='';
+    return;
+  }
+  let totalPnl=0;
+  list.innerHTML=myBets.map(b=>{
+    const m=MARKETS.find(x=>x.id===b.marketId);
+    const curProb=m?(b.side==='yes'?m.yes/100:(100-m.yes)/100):b.odds/100;
+    const curVal=b.stake*curProb/((b.side==='yes'?m?.yes||50:100-(m?.yes||50))/100);
+    const pnl=curVal-b.stake;
+    totalPnl+=pnl;
+    return `<div class="bt-row">
+      <div class="bt-q">${b.q.slice(0,50)}${b.q.length>50?'…':''}</div>
+      <div class="bt-pos ${b.side}">${b.side.toUpperCase()}</div>
+      <div class="bt-stake bt-stake-cell">$${b.stake.toFixed(0)}</div>
+      <div class="bt-odds bth-odds-cell">${b.odds}¢</div>
+      <div class="bt-pnl ${b.status==='pending'?'pending':pnl>=0?'up':'dn'}">${b.status==='pending'?'Pending':(pnl>=0?'+':'')+pnl.toFixed(2)}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('bets-pnl').textContent=`Unrealised P&L: ${totalPnl>=0?'+':''}$${totalPnl.toFixed(2)}`;
+  document.getElementById('bets-pnl').style.color=totalPnl>=0?'var(--green)':'var(--red)';
+}
+
+/* ══ CREATE MARKET ══ */
+function openCreateModal(){
+  if(!connected){ openLogin(); return; }
+  document.getElementById('create-modal').classList.add('show');
+}
+
+function setCat(el,cat){
+  createCat=cat;
+  document.querySelectorAll('.cat-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function submitCreateMarket(){
+  const q=document.getElementById('cm-question').value.trim();
+  if(!q){ showToast('Enter a question','bad'); return; }
+  closeModal('create-modal');
+  showTx('Creating Market',[
+    {t:'Deploying market contract',s:'Starkzap SDK → wallet.tx() on Starknet'},
+    {t:'Seeding initial liquidity',s:`$${document.getElementById('cm-liquidity').value} USDC`},
+    {t:'Market live',s:'Open for trading on ZapPredict'},
+  ],null,()=>{
+    const prob=parseInt(document.getElementById('cm-prob').value)||50;
+    const liq=parseInt(document.getElementById('cm-liquidity').value)||500;
+    const cats={crypto:'💎',starknet:'⚡',defi:'🏦',macro:'🏛️',sports:'⚽'};
+    MARKETS.unshift({
+      id: MARKETS.length+1,
+      cat: createCat,
+      emoji: cats[createCat]||'❓',
+      q,
+      yes: prob,
+      vol: liq,
+      traders: 1,
+      ends: document.getElementById('cm-date').value,
+      hot: false,
+    });
+    totalVolume+=liq; totalTraders+=1;
+    updateStats(); renderMarkets(); renderTrending();
+    showToast('✓ Market created successfully!','good');
+  });
+}
+
+/* ══ AUTH ══ */
+function openLogin(){ document.getElementById('login-modal').classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+
+async function connectWallet(){
+  closeModal('login-modal');
+  if(!window.starknet){ showToast('Install Argent X or Braavos','bad'); return; }
+  showTx('Connecting',[
+    {t:'Requesting wallet access',s:'Check extension for prompt'},
+    {t:'Connected',s:'Ready to predict'},
+  ],async(upd)=>{
+    const a=await window.starknet.enable(); userAddr=a[0]; upd(1); return{skip_hash:true};
+  },setConnected);
+}
+
+function socialLogin(method){
+  closeModal('login-modal');
+  const n={google:'Google',discord:'Discord',twitter:'X',email:'Email'};
+  showTx(`Sign in with ${n[method]}`,[
+    {t:`${n[method]} OAuth`,s:'Privy secure authentication'},
+    {t:'Creating Starknet wallet',s:'Cartridge Controller'},
+    {t:'Ready',s:'Connected to ZapPredict'},
+  ],async(upd)=>{await sleep(800);upd(1);await sleep(900);upd(2);return{skip_hash:true};},
+  ()=>{userAddr='0x02e9ce5c...e9eB';setConnected();});
+}
+
+function setConnected(){
+  connected=true;
+  document.getElementById('wallet-area').innerHTML=`
+    <div class="wallet-chip">
+      <div class="wdot"></div>
+      <span class="waddr">${userAddr?userAddr.slice(0,10)+'...'+userAddr.slice(-4):'0x02e9...e9eB'}</span>
+    </div>`;
+  renderMyBets();
+}
+
+/* ══ TX MODAL ══ */
+let txN=0;
+function showTx(title,steps,execFn,onDone){
+  document.getElementById('txm-title').textContent=title; txN=steps.length;
+  document.getElementById('txm-steps').innerHTML=steps.map((s,i)=>`
+    <div class="tx-s"><div class="tsd ${i===0?'active':'wait'}" id="td-${i}"></div>
+    <div><div class="ts-t">${s.t}</div><div class="ts-s">${s.s}</div></div></div>`).join('');
+  document.getElementById('txm-pf').style.width='0%';
+  document.getElementById('txm-hash').style.display='none';
+  document.getElementById('txm-done').style.display='none';
+  document.getElementById('tx-modal').classList.add('show');
+  if(!execFn){autoTx(steps,onDone);}else{runTx(steps,execFn,onDone);}
+}
+async function autoTx(steps,onDone){
+  for(let i=0;i<steps.length;i++){await sleep(800+Math.random()*300);adv(i,Math.round((i+1)/steps.length*100));}
+  finTx(null,onDone);
+}
+async function runTx(steps,execFn,onDone){
+  adv(0,20);
+  try{const upd=i=>adv(i,Math.round((i+1)/steps.length*100));await sleep(400);adv(1,40);const res=await execFn(upd);adv(steps.length-1,100);finTx(res?.skip_hash?null:res?.hash,onDone);}
+  catch(e){const h=document.getElementById('txm-hash');h.textContent='Error: '+e.message;h.style.display='block';document.getElementById('txm-done').style.display='block';document.getElementById('txm-done').style.background='var(--red)';}
+}
+function adv(i,pct){if(i>0)document.getElementById('td-'+(i-1))?.setAttribute('class','tsd done');document.getElementById('td-'+i)?.setAttribute('class','tsd active');document.getElementById('txm-pf').style.width=pct+'%';}
+function finTx(hash,onDone){
+  for(let i=0;i<txN;i++)document.getElementById('td-'+i)?.setAttribute('class','tsd done');
+  document.getElementById('txm-pf').style.width='100%';
+  if(hash){const h=document.getElementById('txm-hash');h.innerHTML=`<a href="https://starkscan.co/tx/${hash}" target="_blank">${hash} ↗ Starkscan</a>`;h.style.display='block';}
+  document.getElementById('txm-done').style.display='block';
+  if(onDone)setTimeout(onDone,400);
+}
+
+/* ══ TOAST ══ */
+function showToast(msg,type='good'){
+  const t=document.createElement('div');t.className=`toast ${type}`;t.textContent=msg;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),2200);
+}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+init();
+</script>
+</body>
+</html>
